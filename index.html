@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>来打丑东西 - Retro Arcade</title>
+    <!-- Tailwind CSS for modern layouts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Retro Pixel Art Text -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <!-- FontAwesome for arcade icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            background-color: #0c0a12;
+            font-family: 'Press Start 2P', monospace;
+            image-rendering: pixelated;
+            user-select: none;
+            overflow-x: hidden;
+            /* Prevent elastic bounce scrolling on mobile devices */
+            overscroll-behavior-y: contain;
+        }
+
+        /* Responsive scaling container */
+        .arcade-container {
+            box-shadow: 0 0 50px rgba(34, 197, 94, 0.2), inset 0 0 100px rgba(0,0,0,0.9);
+            border: 6px solid #2d1a4c;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #150f24 0%, #201635 100%);
+        }
+        @media (min-width: 768px) {
+            .arcade-container {
+                border: 12px solid #2d1a4c;
+                border-radius: 20px;
+            }
+        }
+
+        /* Scanline Overlay for retro TV effect */
+        .scanlines {
+            position: relative;
+            overflow: hidden;
+        }
+        .scanlines::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.05), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.05));
+            z-index: 10;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+
+        /* Glow effect for retro UI buttons */
+        .neon-glow-btn {
+            box-shadow: 0 4px 0 #15803d, 0 10px 15px rgba(34, 197, 94, 0.4);
+            transition: all 0.1s ease;
+        }
+        .neon-glow-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0px 0 #15803d, 0 4px 6px rgba(34, 197, 94, 0.2);
+        }
+
+        .neon-orange-btn {
+            box-shadow: 0 4px 0 #ea580c, 0 10px 15px rgba(249, 115, 22, 0.4);
+            transition: all 0.1s ease;
+        }
+        .neon-orange-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0px 0 #ea580c, 0 4px 6px rgba(249, 115, 22, 0.2);
+        }
+
+        /* Hide standard cursor inside active game arena */
+        .hide-cursor {
+            cursor: none !important;
+        }
+
+        /* Prevent system text selection and zooming actions on mobile */
+        .no-touch-feedback {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+
+        /* CRT Screen curve approximation */
+        .crt-curve {
+            position: relative;
+        }
+        .crt-curve::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, rgba(0,0,0,0.4) 100%);
+            z-index: 9;
+            pointer-events: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen text-white p-2 md:p-4 select-none no-touch-feedback">
+
+    <!-- Top Decorative Banner -->
+    <div class="text-center mb-2 md:mb-4 z-20">
+        <h1 class="text-xl md:text-5xl font-black tracking-wider text-green-400 uppercase select-none">
+            来打丑东西
+        </h1>
+        <p class="text-[8px] md:text-xs text-orange-400 tracking-widest mt-1 md:mt-2 font-mono select-none">
+            ★ 绿头鱼&丑橘子排队挨打中…… ★
+        </p>
+    </div>
+
+    <!-- Main Arcade Cabinet Container -->
+    <div class="arcade-container w-full max-w-[1024px] flex flex-col items-center p-2 md:p-4 bg-[#18122b] border-purple-950 shadow-2xl relative">
+        
+        <!-- Arcade Marquee top strip -->
+        <div class="w-full flex justify-between items-center bg-[#0d091a] px-2 md:px-4 py-2 border-b-2 md:border-b-4 border-black rounded-t-lg mb-2 md:mb-4 text-[8px] md:text-sm text-gray-400">
+            <div class="flex items-center gap-1 md:gap-2">
+                <span class="w-2 h-2 md:w-3 md:h-3 rounded-full bg-red-600 animate-pulse inline-block"></span>
+                <span>CABINET #09</span>
+            </div>
+            <div class="hidden md:block text-yellow-400 font-bold uppercase tracking-wider animate-pulse text-[10px] md:text-sm">
+                INSERT COIN TO PLAY
+            </div>
+            <div class="flex items-center gap-2 md:gap-3">
+                <i class="fas fa-volume-up hover:text-white cursor-pointer p-1" id="soundToggle" title="切换静音"></i>
+                <span id="cabinetTime">12:00</span>
+            </div>
+        </div>
+
+        <!-- Inner Game Screen Box (16:9 Aspect Ratio) -->
+        <div class="w-full aspect-[16/9] bg-[#0c0817] rounded-lg border-2 md:border-4 border-[#3a2f5c] relative scanlines crt-curve overflow-hidden flex items-center justify-center">
+            
+            <!-- Canvas Object with Touch-Action Lock -->
+            <canvas id="gameCanvas" width="1024" height="576" class="w-full h-full block bg-sky-400 hide-cursor touch-none"></canvas>
+
+            <!-- Loading Overlay -->
+            <div id="loadingOverlay" class="absolute inset-0 bg-[#0c0817] flex flex-col items-center justify-center z-30 transition-opacity duration-300 p-4">
+                <div class="text-center p-4 md:p-6 border-2 md:border-4 border-double border-green-500 bg-[#160f2e] rounded-lg max-w-xs md:max-w-sm w-full">
+                    <p class="text-green-500 text-xs md:text-lg mb-4 md:mb-6 animate-pulse">LOADING ASSETS...</p>
+                    <div class="w-full bg-gray-900 h-4 md:h-6 border-2 border-green-500 p-1 mb-4 md:mb-6">
+                        <div id="loadingBar" class="bg-green-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                    <p class="text-gray-400 text-[6px] md:text-[10px] leading-relaxed">Checking local asset: <span class="text-yellow-400 font-mono">image_8.png</span></p>
+                </div>
+            </div>
+
+            <!-- Start Menu Overlay -->
+            <div id="startMenu" class="absolute inset-0 bg-black/85 flex flex-col items-center justify-center z-20 hidden p-2 md:p-6">
+                <div class="text-center max-w-md w-full p-4 md:p-8 rounded-lg border-2 md:border-4 border-dashed border-orange-500 bg-[#120c24]/95">
+                    <div class="mb-2 md:mb-4 text-green-400 text-xl md:text-2xl animate-bounce">
+                        <i class="fa-solid fa-gamepad text-2xl md:text-4xl"></i>
+                    </div>
+                    <h2 class="text-sm md:text-2xl text-yellow-400 font-bold mb-1 md:mb-2">准备开敲！</h2>
+                    <p class="text-gray-400 text-[7px] md:text-xs mb-3 md:mb-6 leading-relaxed">
+                        用你的像素木槌狠狠敲击冒失的绿头鱼与丑橘子！<br>
+                        避开讨厌的恶心蟑螂，丑橘子奖励翻倍！
+                    </p>
+
+                    <!-- Stats Quick view -->
+                    <div class="grid grid-cols-2 gap-2 text-left border border-gray-700 p-2 md:p-4 rounded bg-[#090514]/80 mb-3 md:mb-6 text-[7px] md:text-xs">
+                        <div class="text-gray-300"><i class="fa-solid fa-trophy text-yellow-500 mr-1 md:mr-2"></i>最高分: <span id="menuHighScore" class="text-white">0</span></div>
+                        <div class="text-gray-300"><i class="fa-solid fa-coins text-yellow-500 mr-1 md:mr-2"></i>累计金币: <span id="menuTotalGold" class="text-white">0</span></div>
+                    </div>
+
+                    <!-- Level Play Start -->
+                    <button id="btnPlayStart" class="neon-glow-btn px-4 py-2 md:px-6 md:py-3 bg-green-600 hover:bg-green-500 text-white rounded text-[8px] md:text-sm font-bold tracking-widest cursor-pointer w-full text-center">
+                        开始游戏 PLAY
+                    </button>
+                </div>
+            </div>
+
+            <!-- Level Transition Overlay -->
+            <div id="levelTransitionOverlay" class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-20 hidden p-4">
+                <div class="text-center p-4 md:p-8 rounded border-2 md:border-4 border-double border-cyan-400 bg-[#0e1624] max-w-sm w-full">
+                    <h2 id="transitionRoundTitle" class="text-xs md:text-2xl text-cyan-400 mb-1 md:mb-2 font-bold tracking-widest animate-pulse">ROUND 1 COMPLETED</h2>
+                    <p id="transitionRoundSubtitle" class="text-gray-400 text-[7px] md:text-xs mb-4 md:mb-6">下一关难度升级：鱼群和橘子更快，且小心蟑螂出没！</p>
+                    <div class="text-[8px] md:text-xs text-yellow-400 mb-4 md:mb-6">
+                        ROUND GOAL: <span id="transitionGoal" class="font-bold">15 HITS</span>
+                    </div>
+                    <button id="btnNextRound" class="neon-orange-btn px-4 py-2 md:px-6 md:py-3 bg-orange-600 hover:bg-orange-500 text-white rounded text-[8px] md:text-xs tracking-wider cursor-pointer">
+                        继续前进 NEXT ROUND
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settlement / Game Over Overlay -->
+            <div id="gameOverOverlay" class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-20 hidden p-4">
+                <div class="text-center max-w-xs md:max-w-md w-full p-4 md:p-8 rounded-lg border-2 md:border-4 border-[#ff4747] bg-[#1a0f0f]/90 shadow-2xl">
+                    <h2 id="gameOverTitle" class="text-sm md:text-2xl text-red-500 mb-2 md:mb-4 font-bold tracking-widest animate-bounce">GAME OVER</h2>
+                    <p id="gameOverMsg" class="text-gray-400 text-[7px] md:text-xs mb-3 md:mb-6">生命值归零或时间已到！避开恶心蟑螂，继续加油！</p>
+                    
+                    <div class="border border-red-900 bg-black/40 p-2 md:p-4 rounded text-left space-y-2 mb-4 md:mb-6 text-[8px] md:text-xs font-mono">
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">本次得分 (SCORE):</span>
+                            <span id="settleScore" class="text-yellow-400 font-bold">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">收获金币 (COINS):</span>
+                            <span id="settleGold" class="text-orange-500 font-bold">+0</span>
+                        </div>
+                        <div class="flex justify-between border-t border-red-900/60 pt-2">
+                            <span class="text-gray-400">达到的关卡 (ROUND):</span>
+                            <span id="settleRound" class="text-blue-400 font-bold">1</span>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 md:gap-4">
+                        <button id="btnRestart" class="neon-orange-btn flex-1 px-2 py-2 md:px-4 md:py-3 bg-orange-600 hover:bg-orange-500 text-white rounded text-[8px] md:text-[10px] font-bold tracking-wider cursor-pointer">
+                            重试 RESTART
+                        </button>
+                        <button id="btnQuit" class="flex-1 px-2 py-2 md:px-4 md:py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-[8px] md:text-[10px] font-bold tracking-wider cursor-pointer border border-gray-600">
+                            主菜单 MENU
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Decorative Cabinet Base (Controls panel graphics) -->
+        <div class="w-full mt-2 md:mt-4 bg-[#0d091a] p-2 md:p-4 rounded-lg border border-black flex flex-col md:flex-row justify-between items-center gap-2 md:gap-4 text-[8px] md:text-xs font-mono select-none">
+            <div class="flex items-center gap-2 md:gap-3 w-full md:w-auto">
+                <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-red-600 border-2 md:border-4 border-red-800 flex items-center justify-center text-white shadow-lg font-bold text-[10px] md:text-xs">1P</div>
+                <div>
+                    <p class="text-gray-300 font-bold text-[8px] md:text-xs">街机控制台 ACTIVE</p>
+                    <p class="text-gray-500 text-[6px] md:text-[10px]">MOUSE/TOUCH: MOVE & TAP HIT!</p>
+                </div>
+            </div>
+            <!-- Mid details / Joystick graphic illustration -->
+            <div class="hidden sm:flex items-center gap-4 md:gap-8 text-gray-500 text-[8px] md:text-xs">
+                <div class="flex items-center gap-1">
+                    <span class="inline-block w-3 h-3 rounded-full bg-yellow-500 border border-yellow-600"></span>
+                    <span>COIN: $0.25</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <span class="inline-block w-1.5 h-3 bg-red-600 rounded"></span>
+                    <span class="inline-block w-1.5 h-3 bg-orange-500 rounded"></span>
+                    <span class="inline-block w-1.5 h-3 bg-green-500 rounded"></span>
+                    <span>8-BIT SYNTH</span>
+                </div>
+            </div>
+            <!-- Round indicators -->
+            <div class="flex gap-2 text-[8px] md:text-xs ml-auto md:ml-0">
+                <span class="px-2 py-1 bg-red-950 text-red-500 border border-red-800 rounded">R1</span>
+                <span class="px-2 py-1 bg-orange-950 text-orange-500 border border-orange-800 rounded">R2</span>
+                <span class="px-2 py-1 bg-green-950 text-green-500 border border-green-800 rounded">R3</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Instruction Guide -->
+    <div class="mt-2 md:mt-4 text-center max-w-md text-gray-500 text-[7px] md:text-xs leading-relaxed font-mono">
+        <p class="mb-1"><i class="fa-solid fa-circle-info mr-1 text-green-500"></i> 支持手机触屏及电脑双击。绿头鱼、丑橘子与逼真大蟑螂均保持高清像素风格！</p>
+    </div>
+
+    <script>
+        // --- 1. Sound Synthesizer (Standard Web Audio API for Offline Playback) ---
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.bgmTimer = null;
+                this.bgmIndex = 0;
+                // Cute, bouncing, lighthearted 8-bit pentatonic melody loop
+                this.bgmMelody = [
+                    329.63, 392.00, 440.00, 392.00, 523.25, 440.00, 392.00, 0,
+                    329.63, 392.00, 440.00, 392.00, 523.25, 587.33, 659.25, 0,
+                    392.00, 329.63, 293.66, 329.63, 392.00, 440.00, 523.25, 0,
+                    440.00, 392.00, 329.63, 293.66, 261.63, 293.66, 329.63, 0
+                ];
+                this.bgmTempo = 180; // milliseconds per step
+            }
+
+            init() {
+                if (this.ctx) return;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.startBGM();
+                } catch (e) {
+                    console.warn("Web Audio API not supported", e);
+                }
+            }
+
+            startBGM() {
+                if (this.bgmTimer) return;
+                
+                const playStep = () => {
+                    if (this.muted || !this.ctx || this.ctx.state === 'suspended') {
+                        this.bgmTimer = setTimeout(playStep, this.bgmTempo);
+                        return;
+                    }
+
+                    const freq = this.bgmMelody[this.bgmIndex];
+                    if (freq > 0) {
+                        // Play a soft retro triangle-wave background instrument
+                        this.playBeep(freq, 0.12, 'triangle', 0.025);
+                    }
+
+                    this.bgmIndex = (this.bgmIndex + 1) % this.bgmMelody.length;
+                    this.bgmTimer = setTimeout(playStep, this.bgmTempo);
+                };
+
+                playStep();
+            }
+
+            playBeep(frequency, duration, type = 'sine', gainVal = 0.1) {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx || this.ctx.state === 'suspended') return;
+
+                const osc = this.ctx.createOscillator();
+                const gainNode = this.ctx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(frequency, this.ctx.currentTime);
+                
+                gainNode.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+
+                osc.connect(gainNode);
+                gainNode.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+
+            playHit() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx || this.ctx.state === 'suspended') return;
+
+                const duration = 0.15;
+                const osc = this.ctx.createOscillator();
+                const gainNode = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + duration);
+
+                gainNode.gain.setValueAtTime(0.35, this.ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+                osc.connect(gainNode);
+                gainNode.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+
+                setTimeout(() => {
+                    this.playBeep(700, 0.05, 'square', 0.12);
+                }, 10);
+            }
+
+            playMiss() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx || this.ctx.state === 'suspended') return;
+
+                const duration = 0.2;
+                const osc = this.ctx.createOscillator();
+                const gainNode = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(70, this.ctx.currentTime + duration);
+
+                gainNode.gain.setValueAtTime(0.18, this.ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+                osc.connect(gainNode);
+                gainNode.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+
+            playCoin() {
+                this.playBeep(987.77, 0.08, 'sine', 0.15);
+                setTimeout(() => {
+                    this.playBeep(1318.51, 0.2, 'sine', 0.15);
+                }, 80);
+            }
+
+            playLevelUp() {
+                const notes = [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50];
+                notes.forEach((freq, index) => {
+                    setTimeout(() => {
+                        this.playBeep(freq, 0.1, 'square', 0.07);
+                    }, index * 75);
+                });
+            }
+
+            playGameOver() {
+                const notes = [440, 392, 349, 293];
+                notes.forEach((freq, index) => {
+                    setTimeout(() => {
+                        this.playBeep(freq, 0.25, 'sawtooth', 0.1);
+                    }, index * 180);
+                });
+            }
+
+            playBomb() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx || this.ctx.state === 'suspended') return;
+
+                const duration = 0.5;
+                const osc = this.ctx.createOscillator();
+                const gainNode = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + duration);
+
+                gainNode.gain.setValueAtTime(0.45, this.ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+                osc.connect(gainNode);
+                gainNode.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        // --- 2. Custom Mallet Pixel Matrix Data ---
+        const MALLET_PIXEL_SCALE = 3; 
+        const malletGrid = [
+            [0,0,0,0,1,1,1,1,1,1,1,0,0,0,0],
+            [0,0,0,1,3,3,3,3,3,3,3,1,0,0,0],
+            [0,0,1,3,3,2,2,2,2,2,3,3,1,0,0],
+            [0,1,3,3,2,2,2,2,2,2,2,3,3,1,0],
+            [1,3,3,2,2,2,5,5,5,2,2,2,3,3,1],
+            [1,3,2,2,2,2,5,5,5,2,2,2,2,3,1],
+            [1,1,1,1,1,1,1,4,1,1,1,1,1,1,1],
+            [0,0,0,0,0,0,1,4,1,0,0,0,0,0,0],
+            [0,0,0,0,0,0,1,4,1,0,0,0,0,0,0],
+            [0,0,0,0,0,0,1,4,1,0,0,0,0,0,0],
+            [0,0,0,0,0,0,1,4,1,0,0,0,0,0,0],
+            [0,0,0,0,0,0,1,4,1,0,0,0,0,0,0],
+            [0,0,0,0,0,0,1,4,1,0,0,0,0,0,0],
+            [0,0,0,0,0,0,1,1,1,0,0,0,0,0,0]
+        ];
+
+        const malletColors = {
+            1: '#3e2723', // Dark outline
+            2: '#a1887f', // Wooden light brown
+            3: '#ffe082', // Golden highlighted trim
+            4: '#b0bec5', // Metal steel handle
+            5: '#5d4037'  // Deep wood shadow
+        };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        const loadingBar = document.getElementById('loadingBar');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const startMenu = document.getElementById('startMenu');
+        const levelTransitionOverlay = document.getElementById('levelTransitionOverlay');
+        const gameOverOverlay = document.getElementById('gameOverOverlay');
+
+        // Game State Variables
+        let assetsLoaded = false;
+        let highscore = 0;
+        let totalGold = 0;
+        try {
+            highscore = parseInt(localStorage.getItem('whackFish_highscore')) || 0;
+            totalGold = parseInt(localStorage.getItem('whackFish_gold')) || 0;
+        } catch(e){}
+        
+        let gameState = "LOADING";
+        let score = 0;
+        let currentRound = 1;
+        let lives = 3;
+        let timeLeft = 30;
+        let isHitting = false;
+        let hitTimer = 0;
+        let mouseX = -999;
+        let mouseY = -999;
+        let isTouchDevice = false; // Identifies mobile layout interaction mode
+
+        // Image loader for local file image_8.png
+        const fishImg = new Image();
+        fishImg.src = 'image_8.png';
+
+        // --- 3. Pixel Graphics Fallbacks (For zero-dependency/offline startup) ---
+        
+        // Canvas for Green headed fish (Front Facing: image_3d7062.jpg style)
+        let fishFallbackCanvas = document.createElement('canvas');
+        fishFallbackCanvas.width = 120;
+        fishFallbackCanvas.height = 120;
+        const fallbackCtx = fishFallbackCanvas.getContext('2d');
+
+        // Canvas for Ugly Orange (image_3d7026.jpg style)
+        let uglyOrangeCanvas = document.createElement('canvas');
+        uglyOrangeCanvas.width = 120;
+        uglyOrangeCanvas.height = 120;
+        const orangeCtx = uglyOrangeCanvas.getContext('2d');
+
+        // Canvas for Symmetrical Creepy Cockroach (New Pixels Replacement for Black Bomb)
+        let cockroachCanvas = document.createElement('canvas');
+        cockroachCanvas.width = 120;
+        cockroachCanvas.height = 120;
+        const roachCtx = cockroachCanvas.getContext('2d');
+
+        function generatePixelCockroach() {
+            roachCtx.clearRect(0,0,120,120);
+            
+            // Cockroach main shell body (very dark brown)
+            roachCtx.fillStyle = '#451a03';
+            roachCtx.fillRect(44, 38, 32, 58); // Main trunk
+            roachCtx.fillRect(49, 24, 22, 14); // Head
+
+            // Shiny wing cover folds (lighter reddish shiny brown)
+            roachCtx.fillStyle = '#78350f';
+            roachCtx.fillRect(47, 42, 11, 50); // Left fold
+            roachCtx.fillRect(62, 42, 11, 50); // Right fold
+            roachCtx.fillRect(52, 27, 16, 8);   // Head thorax plate
+
+            // Long twitching pixel antennae
+            roachCtx.fillStyle = '#270e02';
+            // Left antenna
+            roachCtx.fillRect(38, 18, 12, 3);
+            roachCtx.fillRect(28, 10, 10, 3);
+            roachCtx.fillRect(18, 4, 10, 3);
+            // Right antenna
+            roachCtx.fillRect(70, 18, 12, 3);
+            roachCtx.fillRect(82, 10, 10, 3);
+            roachCtx.fillRect(92, 4, 10, 3);
+
+            // 6 Jointed side legs (creepy layout)
+            // Left side legs
+            roachCtx.fillRect(30, 44, 14, 4); roachCtx.fillRect(26, 36, 4, 10);
+            roachCtx.fillRect(24, 62, 20, 4); roachCtx.fillRect(20, 54, 4, 10);
+            roachCtx.fillRect(26, 80, 18, 4); roachCtx.fillRect(22, 72, 4, 10);
+            // Right side legs
+            roachCtx.fillRect(76, 44, 14, 4); roachCtx.fillRect(90, 36, 4, 10);
+            roachCtx.fillRect(76, 62, 20, 4); roachCtx.fillRect(96, 54, 4, 10);
+            roachCtx.fillRect(76, 80, 18, 4); roachCtx.fillRect(94, 72, 4, 10);
+
+            // Creepy pixel eyes
+            roachCtx.fillStyle = '#000000';
+            roachCtx.fillRect(51, 27, 4, 4);
+            roachCtx.fillRect(65, 27, 4, 4);
+        }
+
+        function generateSymmetricalGreenFish() {
+            fallbackCtx.clearRect(0,0,120,120);
+            
+            // Symmetrical Round Green Base (Green swim cap shape)
+            fallbackCtx.fillStyle = '#22c55e'; // Vibrant green
+            fallbackCtx.fillRect(25, 20, 70, 75);
+            fallbackCtx.fillRect(35, 12, 50, 92);
+            fallbackCtx.fillRect(16, 30, 88, 55);
+            // Symmetrical corner roundness
+            fallbackCtx.fillRect(20, 24, 80, 68);
+
+            // Shadow shading around bottom and sides
+            fallbackCtx.fillStyle = '#15803d'; // Dark green shadow
+            fallbackCtx.fillRect(20, 75, 80, 15);
+            fallbackCtx.fillRect(25, 90, 70, 12);
+            fallbackCtx.fillRect(35, 102, 50, 4);
+            
+            // Highlight shine on head top
+            fallbackCtx.fillStyle = '#86efac';
+            fallbackCtx.fillRect(35, 16, 12, 4);
+            fallbackCtx.fillRect(73, 16, 12, 4);
+
+            // Dual Big Googly Eyes (Yellow Outer Circle, Symmetrical, Symmetrical distance)
+            // Left eye: x=40, y=42. Right eye: x=80, y=42.
+            fallbackCtx.fillStyle = '#facc15'; // Bright Yellow border
+            fallbackCtx.fillRect(30, 32, 18, 18);
+            fallbackCtx.fillRect(72, 32, 18, 18);
+            
+            // Black pupils inside
+            fallbackCtx.fillStyle = '#000000';
+            fallbackCtx.fillRect(33, 35, 12, 12);
+            fallbackCtx.fillRect(75, 35, 12, 12);
+            
+            // Pupil reflection shine
+            fallbackCtx.fillStyle = '#ffffff';
+            fallbackCtx.fillRect(39, 37, 4, 4);
+            fallbackCtx.fillRect(81, 37, 4, 4);
+
+            // Double nostrils (Symmetrical green flaps with dark center - placed right between eyes)
+            fallbackCtx.fillStyle = '#4ade80'; // Bright light green border
+            fallbackCtx.fillRect(44, 52, 12, 8);
+            fallbackCtx.fillRect(64, 52, 12, 8);
+            
+            fallbackCtx.fillStyle = '#000000'; // Nostril openings
+            fallbackCtx.fillRect(47, 54, 6, 4);
+            fallbackCtx.fillRect(67, 54, 6, 4);
+
+            // Sausage lips (Perfect yellow oval with horizontal slit mouth)
+            fallbackCtx.fillStyle = '#ca8a04'; // Outline/shadow
+            fallbackCtx.fillRect(43, 71, 34, 22);
+            fallbackCtx.fillRect(47, 69, 26, 26);
+            
+            fallbackCtx.fillStyle = '#facc15'; // Yellow core lips
+            fallbackCtx.fillRect(45, 73, 30, 18);
+            fallbackCtx.fillRect(48, 71, 24, 22);
+
+            // Symmetrical inner lip slit (Closed dumb look)
+            fallbackCtx.fillStyle = '#000000';
+            fallbackCtx.fillRect(49, 81, 22, 2);
+        }
+
+        function generateUglyOrange() {
+            orangeCtx.clearRect(0,0,120,120);
+
+            // Symmetrical Orange Dome Body
+            orangeCtx.fillStyle = '#f97316'; // Vibrant Orange
+            orangeCtx.fillRect(25, 20, 70, 75);
+            orangeCtx.fillRect(35, 12, 50, 92);
+            orangeCtx.fillRect(16, 30, 88, 55);
+            orangeCtx.fillRect(20, 24, 80, 68);
+
+            // Shadow shading
+            orangeCtx.fillStyle = '#c2410c'; // Deep orange shadow
+            orangeCtx.fillRect(20, 75, 80, 15);
+            orangeCtx.fillRect(25, 90, 70, 12);
+            orangeCtx.fillRect(35, 102, 50, 4);
+
+            // Highlighting
+            orangeCtx.fillStyle = '#fdba74';
+            orangeCtx.fillRect(38, 16, 10, 4);
+            orangeCtx.fillRect(72, 16, 10, 4);
+
+            // Big White Googly Eyes (Ugly style with thick dark red-brown outline)
+            orangeCtx.fillStyle = '#451a03'; // Outline
+            orangeCtx.fillRect(30, 31, 18, 14);
+            orangeCtx.fillRect(72, 31, 18, 14);
+            
+            orangeCtx.fillStyle = '#ffffff'; // Sclera
+            orangeCtx.fillRect(32, 32, 14, 12);
+            orangeCtx.fillRect(74, 32, 14, 12);
+
+            // Small goofy black pupils looking inwards/center
+            orangeCtx.fillStyle = '#000000';
+            orangeCtx.fillRect(37, 35, 6, 6);
+            orangeCtx.fillRect(77, 35, 6, 6);
+
+            // HUGE Laughing Mouth with Red Outline
+            orangeCtx.fillStyle = '#dc2626'; // Red lips
+            orangeCtx.fillRect(30, 56, 60, 36);
+            orangeCtx.fillRect(34, 53, 52, 42);
+            
+            orangeCtx.fillStyle = '#450a0a'; // Dark cavity interior
+            orangeCtx.fillRect(34, 58, 52, 28);
+            orangeCtx.fillRect(38, 56, 44, 32);
+
+            // Row of highly recognizable blocky Yellow Teeth (Top and Bottom)
+            orangeCtx.fillStyle = '#eab308'; // Scurvy yellow teeth
+            
+            // Top teeth dangling down
+            orangeCtx.fillRect(38, 58, 4, 6);
+            orangeCtx.fillRect(45, 58, 4, 6);
+            orangeCtx.fillRect(52, 58, 4, 6);
+            orangeCtx.fillRect(59, 58, 4, 6);
+            orangeCtx.fillRect(66, 58, 4, 6);
+            orangeCtx.fillRect(73, 58, 4, 6);
+            orangeCtx.fillRect(80, 58, 4, 6);
+
+            // Bottom teeth pointing up
+            orangeCtx.fillRect(41, 78, 4, 6);
+            orangeCtx.fillRect(48, 78, 4, 6);
+            orangeCtx.fillRect(55, 78, 4, 6);
+            orangeCtx.fillRect(62, 78, 4, 6);
+            orangeCtx.fillRect(69, 78, 4, 6);
+            orangeCtx.fillRect(76, 78, 4, 6);
+        }
+
+        // Run procedural painters
+        generateSymmetricalGreenFish();
+        generateUglyOrange();
+        generatePixelCockroach();
+
+        let assetProgress = 0;
+        const progressTimer = setInterval(() => {
+            if (assetProgress < 100) {
+                assetProgress += 20;
+                loadingBar.style.width = assetProgress + '%';
+            }
+        }, 80);
+
+        fishImg.onload = function() {
+            finishLoading();
+        };
+
+        fishImg.onerror = function() {
+            console.warn("Using procedural symmetrical fallback for Green fish.");
+            finishLoading();
+        };
+
+        // Safety Trigger
+        setTimeout(() => {
+            if (!assetsLoaded) finishLoading();
+        }, 1200);
+
+        function finishLoading() {
+            assetsLoaded = true;
+            clearInterval(progressTimer);
+            loadingBar.style.width = '100%';
+            setTimeout(() => {
+                loadingOverlay.classList.add('opacity-0');
+                setTimeout(() => {
+                    loadingOverlay.classList.add('hidden');
+                    showMenu();
+                }, 300);
+            }, 200);
+        }
+
+        // Stats sync
+        function updateHUDStats() {
+            document.getElementById('menuHighScore').innerText = highscore;
+            document.getElementById('menuTotalGold').innerText = totalGold;
+            try {
+                localStorage.setItem('whackFish_highscore', highscore);
+                localStorage.setItem('whackFish_gold', totalGold);
+            } catch(e){}
+        }
+
+        function showMenu() {
+            gameState = "MENU";
+            updateHUDStats();
+            startMenu.classList.remove('hidden');
+            levelTransitionOverlay.classList.add('hidden');
+            gameOverOverlay.classList.add('hidden');
+        }
+
+        const roundConfigs = {
+            1: {
+                name: "第一轮：初见绿头鱼",
+                desc: "绿头鱼开始慢慢探头，抓紧机会击打它们！",
+                target: 8,
+                maxSimultaneous: 1,
+                spawnInterval: 1200,
+                activeTime: 1800,
+                hasBombs: false,
+                hasUglyOrange: true,
+                uglyOrangeChance: 0.20
+            },
+            2: {
+                name: "第二轮：丑橘子入侵",
+                desc: "速度加快！注意避开致命蟑螂！",
+                target: 14,
+                maxSimultaneous: 2,
+                spawnInterval: 850,
+                activeTime: 1300,
+                hasBombs: true,
+                bombChance: 0.22,
+                hasUglyOrange: true,
+                uglyOrangeChance: 0.25
+            },
+            3: {
+                name: "第三轮：终极狂欢",
+                desc: "极限狂暴！挑战你的最快神经反射！",
+                target: 20,
+                maxSimultaneous: 3,
+                spawnInterval: 600,
+                activeTime: 950,
+                hasBombs: true,
+                bombChance: 0.30,
+                hasUglyOrange: true,
+                uglyOrangeChance: 0.35
+            }
+        };
+
+        // --- 4. Game Entities and State Control ---
+        class Mole {
+            constructor(id, x, y, size) {
+                this.id = id;
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                
+                this.state = "hidden"; // hidden, rising, active, whacked, retreating
+                this.progress = 0; 
+                this.type = "normal"; // normal, orange, bomb
+                this.timer = 0;
+                this.stayDuration = 1500;
+            }
+
+            spawn(roundConfig) {
+                this.state = "rising";
+                this.progress = 0;
+                this.timer = 0;
+                this.stayDuration = roundConfig.activeTime * (0.8 + Math.random() * 0.4);
+                
+                const rand = Math.random();
+                if (roundConfig.hasBombs && rand < roundConfig.bombChance) {
+                    this.type = "bomb";
+                } else if (roundConfig.hasUglyOrange && rand < (roundConfig.bombChance || 0) + roundConfig.uglyOrangeChance) {
+                    this.type = "orange";
+                } else {
+                    this.type = "normal";
+                }
+            }
+
+            update(dt) {
+                if (this.state === "hidden") return;
+
+                if (this.state === "rising") {
+                    this.progress += dt * 5.5; 
+                    if (this.progress >= 1) {
+                        this.progress = 1;
+                        this.state = "active";
+                    }
+                } else if (this.state === "active") {
+                    this.timer += dt * 1000;
+                    if (this.timer >= this.stayDuration) {
+                        this.state = "retreating";
+                    }
+                } else if (this.state === "retreating") {
+                    this.progress -= dt * 4.5;
+                    if (this.progress <= 0) {
+                        this.progress = 0;
+                        this.state = "hidden";
+                    }
+                } else if (this.state === "whacked") {
+                    this.progress -= dt * 8.5; 
+                    if (this.progress <= 0) {
+                        this.progress = 0;
+                        this.state = "hidden";
+                    }
+                }
+            }
+        }
+
+        // Layout Grid
+        const moles = [];
+        const colCoords = [220, 512, 804];
+        const rowCoords = [240, 370, 500];
+
+        let index = 0;
+        for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 3; c++) {
+                // Front rows slightly larger for stereoscopic depth
+                moles.push(new Mole(index++, colCoords[c], rowCoords[r], 95 + r * 15));
+            }
+        }
+
+        let particles = [];
+        let hitTexts = [];
+
+        function addHitParticles(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 320,
+                    vy: (Math.random() - 1.2) * 220,
+                    size: Math.random() * 5 + 4,
+                    color: color,
+                    life: 0.55,
+                    maxLife: 0.55
+                });
+            }
+        }
+
+        function addHitText(x, y, text, color) {
+            hitTexts.push({
+                x: x,
+                y: y - 25,
+                text: text,
+                color: color,
+                life: 0.9,
+                vy: -60
+            });
+        }
+
+        let spawnTimer = 0;
+        let roundHittedCount = 0; 
+        let totalGoldEarnedThisSession = 0;
+
+        function updateGameLoop(dt) {
+            if (gameState !== "PLAYING") return;
+
+            // Timer update
+            timeLeft -= dt;
+            if (timeLeft <= 0) {
+                timeLeft = 0;
+                handleRoundEndCheck();
+            }
+
+            // Spawn cycle
+            spawnTimer += dt * 1000;
+            const currentConfig = roundConfigs[currentRound];
+            
+            if (spawnTimer >= currentConfig.spawnInterval) {
+                spawnTimer = 0;
+                const activeCount = moles.filter(m => m.state !== "hidden").length;
+                
+                if (activeCount < currentConfig.maxSimultaneous) {
+                    const hiddenMoles = moles.filter(m => m.state === "hidden");
+                    if (hiddenMoles.length > 0) {
+                        const luckyMole = hiddenMoles[Math.floor(Math.random() * hiddenMoles.length)];
+                        luckyMole.spawn(currentConfig);
+                    }
+                }
+            }
+
+            // Update moles
+            moles.forEach(mole => mole.update(dt));
+
+            // Update particles
+            particles.forEach((p, idx) => {
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.vy += 320 * dt; 
+                p.life -= dt;
+                if (p.life <= 0) particles.splice(idx, 1);
+            });
+
+            // Update Floating Texts
+            hitTexts.forEach((t, idx) => {
+                t.y += t.vy * dt;
+                t.life -= dt;
+                if (t.life <= 0) hitTexts.splice(idx, 1);
+            });
+
+            // Hammer Animation Check
+            if (isHitting) {
+                hitTimer += dt * 1000;
+                if (hitTimer >= 100) { 
+                    isHitting = false;
+                }
+            }
+        }
+
+        // Whack Action trigger
+        function whack() {
+            if (gameState !== "PLAYING") return;
+            
+            isHitting = true;
+            hitTimer = 0;
+
+            let hitSomething = false;
+
+            // Process hits from front to back to maintain depth layering
+            for (let i = moles.length - 1; i >= 0; i--) {
+                const mole = moles[i];
+                if (mole.state === "rising" || mole.state === "active") {
+                    
+                    const headHeight = mole.size * 1.1;
+                    const moleY = mole.y - headHeight * mole.progress;
+                    
+                    const dx = mouseX - mole.x;
+                    const dy = mouseY - moleY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < mole.size * 0.72) {
+                        mole.state = "whacked";
+                        hitSomething = true;
+
+                        if (mole.type === "bomb") {
+                            sound.playBomb();
+                            lives--;
+                            addHitParticles(mole.x, moleY, '#542d13'); // Spills dark brown splatter particles
+                            addHitText(mole.x, moleY - 20, "蟑螂! -1 HP", '#ef4444');
+                            
+                            if (lives <= 0) {
+                                triggerGameOver(false, "生命值归零！要避开恶心的蟑螂！");
+                            }
+                        } else if (mole.type === "orange") {
+                            sound.playCoin();
+                            score += 250;
+                            totalGold += 25;
+                            totalGoldEarnedThisSession += 25;
+                            roundHittedCount++;
+                            addHitParticles(mole.x, moleY, '#f97316');
+                            addHitText(mole.x, moleY - 20, "丑橘子! +250", '#f97316');
+                        } else {
+                            sound.playHit();
+                            score += 100;
+                            totalGold += 10;
+                            totalGoldEarnedThisSession += 10;
+                            roundHittedCount++;
+                            addHitParticles(mole.x, moleY, '#22c55e');
+                            addHitText(mole.x, moleY - 20, "+100", '#22c55e');
+                        }
+                        
+                        if (score > highscore) highscore = score;
+                        break; 
+                    }
+                }
+            }
+
+            if (!hitSomething) {
+                sound.playMiss();
+                addHitParticles(mouseX, mouseY, '#94a3b8');
+            }
+        }
+
+        // Drawing Background
+        function drawSkyAndParallax(t) {
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, 300);
+            skyGrad.addColorStop(0, '#100a21'); // Deep space retro indigo
+            skyGrad.addColorStop(1, '#2e1c5c'); 
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, 1024, 576);
+
+            // Cloud Layer
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            const cloudSpeed = 15; 
+            const timeSec = t / 1000;
+            
+            let cloud1X = (timeSec * cloudSpeed) % 1200 - 200;
+            ctx.fillRect(cloud1X, 40, 160, 30);
+            ctx.fillRect(cloud1X + 20, 25, 120, 15);
+
+            let cloud2X = ((timeSec * cloudSpeed * 0.6) + 400) % 1200 - 200;
+            ctx.fillRect(cloud2X, 85, 120, 25);
+
+            // Far Mountains
+            ctx.fillStyle = '#311b92'; 
+            ctx.beginPath();
+            ctx.moveTo(0, 260);
+            ctx.lineTo(180, 140);
+            ctx.lineTo(400, 240);
+            ctx.lineTo(600, 120);
+            ctx.lineTo(820, 250);
+            ctx.lineTo(1024, 150);
+            ctx.lineTo(1024, 260);
+            ctx.lineTo(0, 260);
+            ctx.closePath();
+            ctx.fill();
+
+            // Near Mountains
+            ctx.fillStyle = '#1e1b4b'; 
+            ctx.beginPath();
+            ctx.moveTo(0, 260);
+            ctx.lineTo(280, 180);
+            ctx.lineTo(500, 250);
+            ctx.lineTo(720, 160);
+            ctx.lineTo(950, 230);
+            ctx.lineTo(1024, 200);
+            ctx.lineTo(1024, 260);
+            ctx.lineTo(0, 260);
+            ctx.closePath();
+            ctx.fill();
+
+            // Main Green Turf base
+            ctx.fillStyle = '#166534'; 
+            ctx.fillRect(0, 220, 1024, 356);
+
+            // Light green details
+            ctx.fillStyle = '#22c55e'; 
+            for (let i = 0; i < 45; i++) {
+                const px = (i * 281) % 1024;
+                const py = 235 + ((i * 139) % 320);
+                ctx.fillRect(px, py, 6, 6);
+                ctx.fillRect(px + 4, py + 4, 4, 4);
+            }
+        }
+
+        // Drawing Holes and Moles with clean layered clipping and ZERO visual grey artifacts
+        function drawHolesAndMoles() {
+            moles.forEach(mole => {
+                const radiusX = mole.size;
+                const radiusY = mole.size * 0.35;
+
+                // 1. BACK RIM of the soil heap (Interior hole cavity)
+                ctx.fillStyle = '#1c0d02'; 
+                ctx.beginPath();
+                ctx.ellipse(mole.x, mole.y, radiusX * 0.9, radiusY * 0.9, 0, 0, Math.PI, true); 
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.strokeStyle = '#0f0500';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.ellipse(mole.x, mole.y, radiusX * 0.9, radiusY * 0.9, 0, 0, Math.PI, true);
+                ctx.stroke();
+
+                // 2. Character rising out of the hole (Clipped boundaries)
+                if (mole.state !== "hidden") {
+                    ctx.save();
+                    
+                    // Construct absolute clipping boundaries matching the hole rim perfectly
+                    ctx.beginPath();
+                    ctx.rect(mole.x - radiusX, mole.y - radiusY - (mole.size * 1.5), radiusX * 2, (mole.size * 1.5) + radiusY * 0.85);
+                    ctx.clip();
+
+                    const headWidth = mole.size * 1.25;
+                    const headHeight = mole.size * 1.25;
+                    const currentY = mole.y + 12 - headHeight * mole.progress;
+
+                    if (mole.type === "bomb") {
+                        // Drawing Creepy Procedural Pixel Cockroach instead of bomb
+                        ctx.drawImage(cockroachCanvas, mole.x - headWidth / 2, currentY - 10, headWidth, headHeight);
+
+                    } else if (mole.type === "orange") {
+                        // Drawing Ugly Orange (100% Identical to image_3d7026.jpg)
+                        ctx.drawImage(uglyOrangeCanvas, mole.x - headWidth / 2, currentY - 10, headWidth, headHeight);
+
+                    } else {
+                        // Drawing Front-Facing Green Fish
+                        if (fishImg.complete && fishImg.naturalHeight !== 0) {
+                            // If local transparent image loaded
+                            ctx.drawImage(fishImg, mole.x - headWidth / 2, currentY - 10, headWidth, headHeight);
+                        } else {
+                            // Perfect symmetrical procedural drawing
+                            ctx.drawImage(fishFallbackCanvas, mole.x - headWidth / 2, currentY - 10, headWidth, headHeight);
+                        }
+                    }
+
+                    // Whacked cross eyes
+                    if (mole.state === "whacked") {
+                        ctx.strokeStyle = '#f43f5e';
+                        ctx.lineWidth = 5;
+                        const centerX = mole.x;
+                        const centerY = currentY + headHeight * 0.45;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(centerX - 25, centerY - 15);
+                        ctx.lineTo(centerX - 5, centerY + 5);
+                        ctx.moveTo(centerX - 5, centerY - 15);
+                        ctx.lineTo(centerX - 25, centerY + 5);
+                        ctx.stroke();
+
+                        ctx.beginPath();
+                        ctx.moveTo(centerX + 5, centerY - 15);
+                        ctx.lineTo(centerX + 25, centerY + 5);
+                        ctx.moveTo(centerX + 25, centerY - 15);
+                        ctx.lineTo(centerX + 5, centerY + 5);
+                        ctx.stroke();
+                    }
+
+                    ctx.restore();
+                }
+
+                // 3. FRONT RIM (Foreground pile of dirt. Completely clean, NO grey feet or side flaps!)
+                ctx.fillStyle = '#4c2206'; // Rich dark brown soil
+                ctx.beginPath();
+                ctx.ellipse(mole.x, mole.y + 4, radiusX, radiusY, 0, 0, Math.PI, false); 
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.strokeStyle = '#271001'; 
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.ellipse(mole.x, mole.y + 4, radiusX, radiusY, 0, 0, Math.PI, false);
+                ctx.stroke();
+            });
+        }
+
+        // Particle effect rendering
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                const opacity = p.life / p.maxLife;
+                ctx.save();
+                ctx.globalAlpha = opacity;
+                ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+                ctx.restore();
+            });
+        }
+
+        // Floating Hit texts
+        function drawHitTexts() {
+            ctx.save();
+            ctx.font = "11px 'Press Start 2P'";
+            ctx.textAlign = "center";
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+
+            hitTexts.forEach(t => {
+                ctx.fillStyle = t.color;
+                ctx.strokeText(t.text, t.x, t.y);
+                ctx.fillText(t.text, t.x, t.y);
+            });
+            ctx.restore();
+        }
+
+        // Drawing Top HUD
+        function drawHUD() {
+            ctx.fillStyle = 'rgba(13, 9, 26, 0.85)';
+            ctx.fillRect(0, 0, 1024, 60);
+            ctx.strokeStyle = '#3a2f5c';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(0, 0, 1024, 60);
+
+            ctx.font = "10px 'Press Start 2P'";
+            ctx.textAlign = "left";
+
+            // Draw Score
+            ctx.fillStyle = '#fb923c';
+            ctx.fillText(`SCORE: ${score.toString().padStart(6, '0')}`, 20, 36);
+
+            // Draw Goals
+            ctx.fillStyle = '#22d3ee';
+            const targetGoal = roundConfigs[currentRound].target;
+            ctx.fillText(`GOAL: ${roundHittedCount}/${targetGoal}`, 340, 36);
+
+            // Draw Level
+            ctx.fillStyle = '#c084fc';
+            ctx.fillText(`ROUND: ${currentRound}`, 580, 36);
+
+            // Draw Lives
+            ctx.fillStyle = '#f43f5e';
+            ctx.fillText(`LIFE: `, 750, 36);
+            for (let i = 0; i < 3; i++) {
+                if (i < lives) {
+                    ctx.fillText("♥", 810 + i * 22, 36);
+                } else {
+                    ctx.fillStyle = '#4b5563'; 
+                    ctx.fillText("♡", 810 + i * 22, 36);
+                }
+            }
+
+            // Top Progress bar
+            ctx.fillStyle = '#1f1635';
+            ctx.fillRect(0, 0, 1024, 8);
+            
+            const timePercent = timeLeft / 30;
+            ctx.fillStyle = timePercent > 0.3 ? '#22c55e' : '#f43f5e'; 
+            ctx.fillRect(0, 0, 1024 * timePercent, 8);
+        }
+
+        // Draw pixelated mallet
+        function drawMallet() {
+            ctx.save();
+            const malletWidth = malletGrid[0].length * MALLET_PIXEL_SCALE;
+            const malletHeight = malletGrid.length * MALLET_PIXEL_SCALE;
+            
+            ctx.translate(mouseX, mouseY);
+            
+            if (isHitting) {
+                ctx.rotate(-45 * Math.PI / 180);
+            }
+
+            // On touch screens, offset the mallet higher so it's not hidden by the user's finger!
+            const drawOffsetX = -malletWidth * 0.5;
+            const drawOffsetY = isTouchDevice ? -malletHeight * 1.3 : -malletHeight * 0.2; 
+
+            for (let r = 0; r < malletGrid.length; r++) {
+                for (let c = 0; c < malletGrid[r].length; c++) {
+                    const colorIdx = malletGrid[r][c];
+                    if (colorIdx !== 0) {
+                        ctx.fillStyle = malletColors[colorIdx];
+                        ctx.fillRect(
+                            drawOffsetX + c * MALLET_PIXEL_SCALE, 
+                            drawOffsetY + r * MALLET_PIXEL_SCALE, 
+                            MALLET_PIXEL_SCALE, 
+                            MALLET_PIXEL_SCALE
+                        );
+                    }
+                }
+            }
+            ctx.restore();
+        }
+
+        let lastTime = 0;
+
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            const cappedDt = Math.min(dt, 0.1);
+
+            ctx.clearRect(0,0,1024,576);
+            
+            if (gameState === "PLAYING" || gameState === "TRANSITION" || gameState === "GAMEOVER") {
+                updateGameLoop(cappedDt);
+                drawSkyAndParallax(timestamp);
+                drawHolesAndMoles();
+                drawParticles();
+                drawHitTexts();
+                drawHUD();
+                
+                if (mouseX >= 0 && mouseX <= 1024 && mouseY >= 0 && mouseY <= 576) {
+                    drawMallet();
+                }
+            } else {
+                drawSkyAndParallax(timestamp);
+                drawHolesAndMoles();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- 5. Event Controllers and Inputs ---
+        function updatePointerPos(e) {
+            // Detect if this is a touch event to adjust mallet offset
+            isTouchDevice = (e.type.startsWith('touch'));
+            
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            
+            if (e.touches && e.touches[0]) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else if (e.changedTouches && e.changedTouches[0]) {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            mouseX = (clientX - rect.left) / rect.width * 1024;
+            mouseX = Math.max(0, Math.min(1024, mouseX)); // keep inside canvas
+            
+            mouseY = (clientY - rect.top) / rect.height * 576;
+            mouseY = Math.max(0, Math.min(576, mouseY));
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            updatePointerPos(e);
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            updatePointerPos(e);
+            whack();
+        });
+
+        // Touch Support (Direct response & scroll-locking for mobile)
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            sound.init(); 
+            updatePointerPos(e);
+            whack();
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            updatePointerPos(e);
+        }, { passive: false });
+
+        // Trigger buttons
+        document.getElementById('btnPlayStart').addEventListener('click', () => {
+            sound.init();
+            sound.playCoin();
+            startNewGame();
+        });
+
+        document.getElementById('btnNextRound').addEventListener('click', () => {
+            sound.init();
+            sound.playCoin();
+            startNextRound();
+        });
+
+        document.getElementById('btnRestart').addEventListener('click', () => {
+            sound.init();
+            sound.playCoin();
+            startNewGame();
+        });
+
+        document.getElementById('btnQuit').addEventListener('click', () => {
+            sound.init();
+            sound.playCoin();
+            showMenu();
+        });
+
+        document.getElementById('soundToggle').addEventListener('click', () => {
+            sound.muted = !sound.muted;
+            const icon = document.getElementById('soundToggle');
+            if (sound.muted) {
+                icon.classList.remove('fa-volume-up');
+                icon.classList.add('fa-volume-mute', 'text-red-500');
+            } else {
+                icon.classList.remove('fa-volume-mute', 'text-red-500');
+                icon.classList.add('fa-volume-up');
+            }
+        });
+
+        function startNewGame() {
+            score = 0;
+            currentRound = 1;
+            lives = 3;
+            totalGoldEarnedThisSession = 0;
+            
+            startMenu.classList.add('hidden');
+            gameOverOverlay.classList.add('hidden');
+            levelTransitionOverlay.classList.add('hidden');
+
+            setupRound();
+        }
+
+        function setupRound() {
+            roundHittedCount = 0;
+            timeLeft = 30;
+            moles.forEach(m => m.state = "hidden"); 
+            particles = [];
+            hitTexts = [];
+            gameState = "PLAYING";
+        }
+
+        function handleRoundEndCheck() {
+            const currentConfig = roundConfigs[currentRound];
+            
+            if (roundHittedCount >= currentConfig.target) {
+                sound.playLevelUp();
+                
+                if (currentRound < 3) {
+                    gameState = "TRANSITION";
+                    currentRound++;
+                    
+                    document.getElementById('transitionRoundTitle').innerText = `ROUND ${currentRound - 1} COMPLETED!`;
+                    document.getElementById('transitionRoundSubtitle').innerText = roundConfigs[currentRound].desc;
+                    document.getElementById('transitionGoal').innerText = `${roundConfigs[currentRound].target} HITS`;
+                    
+                    levelTransitionOverlay.classList.remove('hidden');
+                } else {
+                    triggerGameOver(true, "太棒了！你完美击败了所有搞怪的绿头鱼与丑橘子！");
+                }
+            } else {
+                triggerGameOver(false, "时间已到！击中数量不够，再试一次吧！");
+            }
+        }
+
+        function startNextRound() {
+            levelTransitionOverlay.classList.add('hidden');
+            setupRound();
+        }
+
+        function triggerGameOver(isWin, msg) {
+            gameState = "GAMEOVER";
+            
+            if (!isWin) {
+                sound.playGameOver();
+            } else {
+                sound.playCoin();
+            }
+
+            totalGold += Math.floor(score / 10); 
+            updateHUDStats();
+
+            document.getElementById('gameOverTitle').innerText = isWin ? "VICTORY!" : "GAME OVER";
+            document.getElementById('gameOverTitle').className = isWin ? "text-sm md:text-2xl text-green-400 mb-2 md:mb-4 font-bold tracking-widest animate-bounce" : "text-sm md:text-2xl text-red-500 mb-2 md:mb-4 font-bold tracking-widest animate-bounce";
+            document.getElementById('gameOverMsg').innerText = msg;
+            
+            document.getElementById('settleScore').innerText = score;
+            document.getElementById('settleGold').innerText = `+${totalGoldEarnedThisSession}`;
+            document.getElementById('settleRound').innerText = currentRound;
+
+            gameOverOverlay.classList.remove('hidden');
+        }
+
+        // Live cabinet timer updating
+        function updateCabinetClock() {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('cabinetTime').innerText = `${hh}:${mm}`;
+        }
+        setInterval(updateCabinetClock, 1000);
+        updateCabinetClock();
+
+        window.onload = function() {
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
